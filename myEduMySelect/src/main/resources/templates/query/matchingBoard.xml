@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.myedumyselect.matching.board.dao.MatchingBoardDAO">
+
+	<!-- MatchingBoardVO 별칭 일괄 부여 -->
+	<resultMap type="matchingBoard" id="matchingBoardMap">
+		<id column="matching_no" property="matchingNo" />
+		<result column="personal_id" property="personalId" />
+		<result column="matching_private" property="matchingPrivate" />
+		<result column="matching_passwd" property="matchingPasswd" />
+		<result column="matching_register_date" property="matchingRegisterDate" />
+		<result column="matching_edit_date" property="matchingEditDate" />
+		<result column="matching_gu_address" property="matchingGuAddress" />
+		<result column="matching_dong_address" property="matchingDongAddress" />
+		<result column="matching_target_grade" property="matchingTargetGrade" />
+		<result column="matching_target_subject" property="matchingTargetSubject" />
+		<result column="matching_fee" property="matchingFee" />
+		<result column="matching_keyword1" property="matchingKeyword1" />
+		<result column="matching_keyword2" property="matchingKeyword2" />
+		<result column="matching_keyword3" property="matchingKeyword3" />
+		<result column="commentCnt" property="commentCnt" />
+		<result column="matching_comment" property="matchingComment" />
+	</resultMap>
+	
+	<!-- AcademyVo 별칭 일괄 부여 -->
+	<resultMap type="academyLogin" id="academyMap">
+		<id column="academy_id" property="academyId" />
+		<result column="member_type_id" property="memberTypeId" />
+		<result column="academy_number" property="academyNumber" />
+		<result column="academy_join_date" property="academyJoinDate" />
+		<result column="academy_passwd" property="academyPasswd" />
+		<result column="academy_name" property="academyName" />
+		<result column="academy_gu_address" property="academyGuAddress" />
+		<result column="academy_dong_address" property="academyDongAddress" />
+		<result column="academy_road_address" property="academyRoadAddress" />
+		<result column="academy_phone" property="academyPhone" />
+		<result column="academy_manager_name" property="academyManagerName" />
+		<result column="academy_manager_email" property="academyManagerEmail" />
+		<result column="academy_manager_phone" property="academyManagerPhone" />
+		<result column="academy_target_grade" property="academyTargetGrade" />
+		<result column="academy_target_subject" property="academyTargetSubject" />
+		<result column="academy_keyword1" property="academyKeyword1" />
+		<result column="academy_keyword2" property="academyKeyword2" />
+		<result column="academy_keyword3" property="academyKeyword3" />
+		<result column="academy_keyword4" property="academyKeyword4" />
+		<result column="academy_keyword5" property="academyKeyword5" />
+		<result column="academy_fee" property="academyFee" />
+		<result column="academy_passwd_change_date" property="academyPasswdChangeDate" />
+		<result column="academy_login_fail_count" property="academyLoginFailCount" />
+		<result column="academy_account_banned_date" property="academyAccountBannedDate" />
+	</resultMap>
+	
+	
+	
+	<!-- 매칭게시판 글 목록 미리보기 조회 -->
+	<select id="mBoardListPreview" parameterType="matchingBoard" resultMap="matchingBoardMap">
+	    <![CDATA[
+	        SELECT  * 
+	        FROM (
+	            SELECT  matching_no
+	            , 		matching_private
+	            , 		matching_gu_address
+	            , 		matching_dong_address
+	            , 		matching_target_subject
+	            , 		matching_target_grade
+	            , 		personal_id
+	            , 		to_char (matching_register_date, 'YYYY-MM-DD')   as matching_register_date
+	            , 		( SELECT COUNT(matching_comment_no) 
+	            		  FROM tb_matching_comment 
+	            		  WHERE matching_no = tb_matching_board.matching_no)   as commentCnt
+	            FROM    tb_matching_board
+	            ORDER BY matching_no DESC
+	        ) WHERE ROWNUM <= 5
+	    ]]>
+	</select>
+	
+	
+	<!-- 맞춤형 검색 -->
+	<select id="mResult" parameterType="matchingBoard" resultMap="academyMap">
+		SELECT  *
+		FROM    tb_academy 
+		WHERE   academy_gu_address = #{matchingGuAddress} 
+			AND academy_dong_address = #{matchingDongAddress}
+			AND academy_target_grade = #{matchingTargetGrade}
+			AND academy_target_subject = #{matchingTargetSubject}
+			AND ( academy_fee = #{matchingFee} OR #{matchingFee} = '무관' )
+			AND  (
+					( #{matchingKeyword1} IS NULL OR 
+						#{matchingKeyword1} IN (academy_keyword1, academy_keyword2, academy_keyword3, academy_keyword4, academy_keyword5) )
+				    AND
+				    ( #{matchingKeyword2} IS NULL OR
+				    	#{matchingKeyword2} IN (academy_keyword1, academy_keyword2, academy_keyword3, academy_keyword4, academy_keyword5) )
+				    AND
+				    ( #{matchingKeyword3} IS NULL OR 
+				    	#{matchingKeyword3} IN (academy_keyword1, academy_keyword2, academy_keyword3, academy_keyword4, academy_keyword5) )
+			)
+	</select> 
+	
+	
+	<!-- 공개매칭 자동 등록 -->
+	<insert id="publicUpload" parameterType="matchingBoard" >
+		INSERT  into  tb_matching_board
+		VALUES (matching_board_seq.nextval, #{personalId}, 'N', null, sysdate, null, #{matchingGuAddress}, #{matchingDongAddress},
+					#{matchingTargetGrade}, #{matchingTargetSubject}, #{matchingFee}, 
+					#{matchingKeyword1}, #{matchingKeyword2}, #{matchingKeyword3}, #{matchingComment}  )
+	</insert>
+	
+	<!-- 비공개매칭 자동 등록 -->
+	<insert id="privateUpload" parameterType="matchingBoard" >
+		INSERT into tb_matching_board
+		VALUES (matching_board_seq.nextval, #{personalId}, 'Y', #{matchingPasswd}, sysdate, null, #{matchingGuAddress}, #{matchingDongAddress},
+					#{matchingTargetGrade}, #{matchingTargetSubject}, #{matchingFee}, 
+					#{matchingKeyword1}, #{matchingKeyword2}, #{matchingKeyword3}, #{matchingComment}  )
+	</insert>
+	
+	<!-- 비공개매칭 시 이메일 검색 -->
+	<select id="searchEmail" parameterType="matchingBoard" resultMap="academyMap">
+		SELECT academy_name, academy_manager_email from tb_academy
+		WHERE academy_name IN
+		<foreach collection="privateChecked" item="name" open="(" separator="," close=")">
+			#{name}
+		</foreach>
+	</select>
+	
+	
+	<!-- 매칭게시판 글 목록 전체 보기 
+	<select id="mBoardList" parameterType="matchingBoard" resultMap="matchingBoardMap">
+		<![CDATA[
+			SELECT  matching_no
+	        , 		matching_private
+	        , 		matching_gu_address
+	        , 		matching_dong_address
+	        , 		matching_target_subject
+	        , 		matching_target_grade
+	        , 		personal_id
+	        , 		to_char (matching_register_date, 'YYYY-MM-DD')   as matching_register_date
+	        , 		( SELECT COUNT(matching_comment_no) 
+	        		  FROM tb_matching_comment 
+	        		  WHERE matching_no = tb_matching_board.matching_no)   as commentCnt
+	        FROM   (
+	        		SELECT /*+ INDEX_DESC(tb_matching_board tb_matching_board_pk) */
+	        			rownum, 
+	        			matching_no, 
+	        			matching_private, 
+	        			matching_gu_address, 
+	        			matching_dong_address, 
+	        			matching_target_subject, 
+	        			matching_target_grade, 
+	        			personal_id, 
+	        			matching_register_date
+	        		FROM tb_matching_board
+	        		WHERE rownum <= #{pageNum} * #{amount}
+	        	) 
+	        WHERE rownum > (#{pageNum} -1) * #{amount}
+		]]>
+	</select> -->
+	
+
+</mapper>
